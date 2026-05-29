@@ -286,7 +286,7 @@ class VideoRAGOrchestrator:
 			+ "\n".join(chunk_lines)
 		)
 
-		llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", streaming=True)
+		llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", streaming=True)
 		response = await llm.ainvoke(
 			[SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
 		)
