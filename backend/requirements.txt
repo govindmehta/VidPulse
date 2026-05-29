@@ -1,0 +1,21 @@
+# Web & Server Runtimes
+fastapi==0.111.0
+uvicorn==0.30.1
+pydantic==2.7.4
+pydantic-settings==2.3.4
+httpx==0.27.0
+
+# Scrapers & Media Processing 
+youtube-transcript-api==1.2.4
+yt-dlp==2025.01.15
+
+# Local Machine Embeddings & Data Engine
+sentence-transformers==3.0.1
+chromadb==0.5.0
+
+# AI Orchestration Frameworks
+langchain-core==0.2.9
+langchain-community==0.2.5
+langgraph==0.0.65
+langchain-google-genai==1.0.6
+python-dotenv==1.0.1
