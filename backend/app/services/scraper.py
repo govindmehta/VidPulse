@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import importlib
 import re
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -16,7 +14,9 @@ class VideoScraperService:
 	def __init__(self, http_timeout_s: float = 15.0) -> None:
 		self._http_timeout_s = http_timeout_s
 
-	async def fetch_youtube_video(self, youtube_url: str) -> VideoMetadata:
+	async def fetch_youtube_video(
+		self, youtube_url: str, video_label: Optional[str] = None
+	) -> VideoMetadata:
 		video_id = self._extract_youtube_id(youtube_url)
 		if not video_id:
 			raise ValueError("Unable to extract YouTube video id from URL")
@@ -29,8 +29,14 @@ class VideoScraperService:
 		comments = max(metadata.get("comments", 0), 0)
 		engagement_rate = self._compute_engagement_rate(views, likes, comments)
 
+		final_video_id = (
+			video_label
+			if video_label in {"video_a", "video_b"}
+			else video_id
+		)
+
 		return VideoMetadata(
-			video_id=video_id,
+			video_id=final_video_id,
 			title=metadata.get("title", ""),
 			views=views,
 			likes=likes,
@@ -43,39 +49,12 @@ class VideoScraperService:
 			transcript_segments=transcript_segments,
 		)
 
-	async def fetch_instagram_reel(self, instagram_url: str) -> VideoMetadata:
-		reel_id = self._extract_instagram_reel_id(instagram_url)
-		seed = int(hashlib.sha256(instagram_url.encode("utf-8")).hexdigest()[:8], 16)
-		views = 10_000 + (seed % 250_000)
-		likes = 400 + (seed % 12_000)
-		comments = 25 + (seed % 1_200)
-		duration = 15 + (seed % 60)
-		follower_count = 5_000 + (seed % 500_000)
-		engagement_rate = self._compute_engagement_rate(views, likes, comments)
-		upload_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-		transcript_segments = [
-			TranscriptSegment(
-				text=f"Reel {reel_id} summary segment.",
-				start=0.0,
-				duration=min(10.0, float(duration)),
-			)
-		]
-
-		# Production volume ~1,000 requests/day should route via residential proxy pools to bypass active firewalls.
-		return VideoMetadata(
-			video_id=reel_id,
-			title=f"Instagram Reel {reel_id}",
-			views=views,
-			likes=likes,
-			comments=comments,
-			creator=f"creator_{reel_id}",
-			follower_count=follower_count,
-			engagement_rate=engagement_rate,
-			upload_date=upload_date,
-			duration=duration,
-			transcript_segments=transcript_segments,
-		)
+	async def fetch_youtube_pair(
+		self, youtube_url_a: str, youtube_url_b: str
+	) -> tuple[VideoMetadata, VideoMetadata]:
+		task_a = self.fetch_youtube_video(youtube_url_a, video_label="video_a")
+		task_b = self.fetch_youtube_video(youtube_url_b, video_label="video_b")
+		return await asyncio.gather(task_a, task_b)
 
 	async def _fetch_youtube_transcript(self, video_id: str) -> List[TranscriptSegment]:
 		try:
@@ -120,6 +99,8 @@ class VideoScraperService:
 				"skip_download": True,
 				"extract_flat": True,
 				"no_warnings": True,
+				# This automatically passes active authentication headers.
+				"cookiesfrombrowser": ("chrome",),
 			}
 			with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 				info = ydl.extract_info(youtube_url, download=False)
@@ -215,13 +196,6 @@ class VideoScraperService:
 			if match:
 				return match.group(1)
 		return None
-
-	def _extract_instagram_reel_id(self, instagram_url: str) -> str:
-		match = re.search(r"/reel/([\w-]+)/?", instagram_url)
-		if match:
-			return match.group(1)
-		suffix = hashlib.md5(instagram_url.encode("utf-8")).hexdigest()[:8]
-		return f"reel_{suffix}"
 
 	def _compute_engagement_rate(self, views: int, likes: int, comments: int) -> float:
 		if views <= 0:

@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
 	GOOGLE_API_KEY: str
-	CHROMA_PERSIST_DIR: str = "./chroma_db"
+	QDRANT_STORAGE_PATH: str = "./qdrant_storage"
 	HOST: str = "0.0.0.0"
 	PORT: int = 8000
 

@@ -51,23 +51,23 @@ async def ingest_videos(payload: VideoAnalysisRequest) -> Dict[str, Any]:
 		scraper: VideoScraperService = app.state.scraper_service
 		vector_service: VectorStorageService = app.state.vector_service
 
-		youtube_task = scraper.fetch_youtube_video(payload.youtube_url)
-		instagram_task = scraper.fetch_instagram_reel(payload.instagram_url)
-		youtube_meta, instagram_meta = await asyncio.gather(
-			youtube_task, instagram_task
+		youtube_a, youtube_b = await scraper.fetch_youtube_pair(
+			payload.youtube_url_a, payload.youtube_url_b
 		)
 
-		youtube_segments = [seg.model_dump() for seg in youtube_meta.transcript_segments]
-		instagram_segments = [
-			seg.model_dump() for seg in instagram_meta.transcript_segments
-		]
+		youtube_a_segments = [seg.model_dump() for seg in youtube_a.transcript_segments]
+		youtube_b_segments = [seg.model_dump() for seg in youtube_b.transcript_segments]
 
-		vector_service.index_video_transcript(youtube_meta.video_id, youtube_segments)
-		vector_service.index_video_transcript(instagram_meta.video_id, instagram_segments)
+		vector_service.index_video_transcript(
+			youtube_a.video_id, youtube_a_segments, video_label="video_a"
+		)
+		vector_service.index_video_transcript(
+			youtube_b.video_id, youtube_b_segments, video_label="video_b"
+		)
 
 		return {
-			"youtube": youtube_meta.model_dump(),
-			"instagram": instagram_meta.model_dump(),
+			"youtube_a": youtube_a.model_dump(),
+			"youtube_b": youtube_b.model_dump(),
 		}
 	except Exception as exc:
 		logger.exception("Ingest failed")
@@ -85,8 +85,11 @@ async def chat(payload: ChatRequest) -> StreamingResponse:
 		orchestrator: VideoRAGOrchestrator = app.state.orchestrator
 
 		metadata_context: Dict[str, Dict[str, Any]] = {}
-		for video_id in payload.video_ids:
-			metadata_context[video_id] = {"video_id": video_id}
+		normalized_ids = [vid for vid in payload.video_ids if vid]
+		if normalized_ids:
+			metadata_context["video_a"] = {"video_id": "video_a"}
+		if len(normalized_ids) > 1:
+			metadata_context["video_b"] = {"video_id": "video_b"}
 
 		token_stream = orchestrator.stream_analysis_response(
 			user_query=payload.user_query,

@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field
 
 
 class VideoAnalysisRequest(BaseModel):
-	youtube_url: str = Field(..., min_length=1)
-	instagram_url: str = Field(..., min_length=1)
+	youtube_url_a: str = Field(..., min_length=1)
+	youtube_url_b: str = Field(..., min_length=1)
 
 
 class TranscriptSegment(BaseModel):
