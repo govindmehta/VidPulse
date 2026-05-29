@@ -11,7 +11,7 @@ yt-dlp==2025.01.15
 
 # Local Machine Embeddings & Data Engine
 sentence-transformers==3.0.1
-chromadb==0.5.0
+qdrant-client==1.9.0
 
 # AI Orchestration Frameworks
 langchain-core==0.2.9
