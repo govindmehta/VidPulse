@@ -58,12 +58,17 @@ async def ingest_videos(payload: VideoAnalysisRequest) -> Dict[str, Any]:
 		youtube_a_segments = [seg.model_dump() for seg in youtube_a.transcript_segments]
 		youtube_b_segments = [seg.model_dump() for seg in youtube_b.transcript_segments]
 
-		vector_service.index_video_transcript(
+		logger.info("Indexing start: video_a=%s", youtube_a.video_id)
+		await vector_service.index_video_transcript(
 			youtube_a.video_id, youtube_a_segments, video_label="video_a"
 		)
-		vector_service.index_video_transcript(
+		logger.info("Indexing complete: video_a=%s", youtube_a.video_id)
+
+		logger.info("Indexing start: video_b=%s", youtube_b.video_id)
+		await vector_service.index_video_transcript(
 			youtube_b.video_id, youtube_b_segments, video_label="video_b"
 		)
+		logger.info("Indexing complete: video_b=%s", youtube_b.video_id)
 
 		return {
 			"youtube_a": youtube_a.model_dump(),

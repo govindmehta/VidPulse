@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import logging
 from typing import Any, AsyncGenerator, Dict, Iterable, List, Optional, TypedDict
@@ -84,17 +85,22 @@ class VectorStorageService:
 			"Distance": qdrant_models.Distance,
 		}
 
-	def index_video_transcript(
+	async def index_video_transcript(
 		self,
 		video_id: str,
 		transcript_segments: List[Dict[str, Any]],
 		video_label: Optional[str] = None,
 	) -> int:
-		normalized_id = (
-			video_label
-			if video_label in {"video_a", "video_b"}
-			else video_id
-		)
+		if video_label in {"video_a", "video_b"}:
+			normalized_id = video_label
+		elif video_id in {"video_a", "video_b"}:
+			normalized_id = video_id
+		else:
+			logger.warning(
+				"[QDRANT WARNING] Unexpected video_id label '%s', defaulting to video_a",
+				video_id,
+			)
+			normalized_id = "video_a"
 		splitter = self._TextSplitter(chunk_size=300, chunk_overlap=50)
 		documents: List[DocumentType] = []
 		chunk_sizes: List[int] = []
@@ -128,7 +134,7 @@ class VectorStorageService:
 
 		try:
 			if documents:
-				self._vectorstore.add_documents(documents)
+				await asyncio.to_thread(self._vectorstore.add_documents, documents)
 		except Exception as exc:
 			logger.exception("Failed to store vectors for video_id=%s", video_id)
 			raise exc
@@ -138,8 +144,14 @@ class VectorStorageService:
 	def retrieve_context(
 		self, query: str, video_ids: Iterable[str], k: int = 4
 	) -> List[DocumentType]:
-		video_id_list = [vid for vid in video_ids if vid]
+		video_id_list = [
+			vid for vid in video_ids if vid in {"video_a", "video_b"}
+		]
 		if not video_id_list:
+			logger.warning(
+				"[QDRANT WARNING] No vectors matched filter keys: %s",
+				list(video_ids),
+			)
 			return []
 
 		# Filtering vectors by metadata BEFORE search prevents context bleed across sessions.
@@ -153,7 +165,15 @@ class VectorStorageService:
 		)
 
 		try:
-			return self._vectorstore.similarity_search(query, k=k, filter=qdrant_filter)
+			results = self._vectorstore.similarity_search(
+				query, k=k, filter=qdrant_filter
+			)
+			if not results:
+				logger.warning(
+					"[QDRANT WARNING] No vectors matched filter keys: %s",
+					video_id_list,
+				)
+			return results
 		except Exception as exc:
 			logger.exception("Failed to retrieve context for query=%s", query)
 			return []
@@ -288,6 +308,11 @@ class VideoRAGOrchestrator:
 			state["retrieved_chunks"] = self._vector_service.retrieve_context(
 				state["user_query"], video_ids
 			)
+			if not state["retrieved_chunks"]:
+				logger.warning(
+					"[QDRANT WARNING] No vectors matched filter keys: %s",
+					video_ids,
+				)
 		except Exception:
 			state["retrieved_chunks"] = []
 		return state
