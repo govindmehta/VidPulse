@@ -1,5 +1,5 @@
 import "./App.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import ChatPanel from "./components/ChatPanel";
 import VideoCards from "./components/VideoCards";
@@ -24,32 +24,61 @@ type IngestResponse = {
   };
 };
 
+type Session = {
+  id: string;
+  title: string;
+  date: string;
+  data: IngestResponse;
+};
+
+// SVG Icons
+const SunIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+);
+const MoonIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+);
+const PlusIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+);
+const HistoryIcon = () => (
+  <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
+
 function App() {
+  const [isDark, setIsDark] = useState<boolean>(true);
   const [youtubeUrlA, setYoutubeUrlA] = useState<string>("");
   const [youtubeUrlB, setYoutubeUrlB] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [ingestData, setIngestData] = useState<IngestResponse | null>(null);
+  
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  // Apply theme to document
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const activeData = useMemo(() => {
+    return sessions.find(s => s.id === activeSessionId)?.data || null;
+  }, [sessions, activeSessionId]);
 
   const videoCards = useMemo<{
     videoA: VideoMetrics;
     videoB: VideoMetrics;
   } | null>(() => {
-    if (!ingestData) return null;
+    if (!activeData) return null;
 
     return {
-      videoA: {
-        ...ingestData.youtube_a,
-        platform: "YouTube",
-        slotLabel: "A",
-      },
-      videoB: {
-        ...ingestData.youtube_b,
-        platform: "YouTube",
-        slotLabel: "B",
-      },
+      videoA: { ...activeData.youtube_a, platform: "YouTube", slotLabel: "A" },
+      videoB: { ...activeData.youtube_b, platform: "YouTube", slotLabel: "B" },
     };
-  }, [ingestData]);
+  }, [activeData]);
 
   const handleIngest = async () => {
     if (!youtubeUrlA.trim() || !youtubeUrlB.trim()) {
@@ -75,7 +104,20 @@ function App() {
       }
 
       const payload = (await response.json()) as IngestResponse;
-      setIngestData(payload);
+      
+      const newSession: Session = {
+        id: crypto.randomUUID(),
+        title: `${payload.youtube_a.title} vs ${payload.youtube_b.title}`,
+        date: new Date().toLocaleDateString(),
+        data: payload
+      };
+
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+      
+      // Clear inputs
+      setYoutubeUrlA("");
+      setYoutubeUrlB("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
     } finally {
@@ -83,101 +125,135 @@ function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen gradient-bg text-slate-100 flex flex-col relative overflow-hidden">
-      {/* Background ambient lighting */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/20 blur-[120px] pointer-events-none"></div>
+  const startNewSession = () => {
+    setActiveSessionId(null);
+    setYoutubeUrlA("");
+    setYoutubeUrlB("");
+    setError(null);
+  };
 
-      <div className="mx-auto w-full max-w-6xl px-6 py-12 relative z-10 flex flex-col flex-1">
-        <section className="glass-panel rounded-3xl p-8 sm:p-12 animate-fade-in-up">
-          <div className="flex flex-col gap-8">
-            <div className="text-center sm:text-left">
-              <div className="inline-flex items-center gap-2 mb-3">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-                </span>
-                <p className="text-xs uppercase tracking-[0.3em] font-semibold text-indigo-400">
-                  VidPulse
-                </p>
-              </div>
-              <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                Real-time video intelligence <br className="hidden sm:block"/>
-                <span className="gradient-text">for creator strategy</span>
+  return (
+    <div className="flex h-screen w-full gradient-bg text-slate-800 dark:text-slate-100 relative overflow-hidden transition-colors duration-300">
+      
+      {/* Sidebar */}
+      <aside className="w-72 border-r border-slate-200 dark:border-white/5 bg-slate-100/50 dark:bg-slate-900/40 backdrop-blur-xl flex flex-col z-20 shrink-0">
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-600 dark:bg-indigo-500"></span>
+            </span>
+            <span className="font-bold tracking-widest text-sm text-indigo-900 dark:text-indigo-400 uppercase">VidPulse</span>
+          </div>
+          <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors text-slate-600 dark:text-slate-400">
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </div>
+
+        <div className="px-4 pb-4">
+          <button onClick={startNewSession} className="w-full flex items-center gap-2 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-colors rounded-xl px-4 py-3 text-sm font-semibold shadow-sm">
+            <PlusIcon />
+            <span>New Comparison</span>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1 scrollbar-hide">
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-2">Recent</p>
+          {sessions.length === 0 ? (
+            <p className="text-xs text-slate-400 px-2">No past comparisons yet.</p>
+          ) : (
+            sessions.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setActiveSessionId(s.id)}
+                className={`sidebar-item group ${activeSessionId === s.id ? 'sidebar-item-active' : ''}`}
+              >
+                <HistoryIcon />
+                <span className="truncate flex-1">{s.title}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* Main Area */}
+      <main className="flex-1 flex flex-col relative h-full overflow-hidden">
+        {/* Ambient lighting blobs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 dark:bg-indigo-600/20 blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 dark:bg-purple-600/20 blur-[120px] pointer-events-none"></div>
+
+        {!activeData ? (
+          /* Empty State / Prompt Area */
+          <div className="flex-1 flex flex-col items-center justify-center p-8 z-10 w-full max-w-3xl mx-auto animate-fade-in-up">
+            <div className="text-center mb-10 text-slate-900 dark:text-white">
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">
+                What do you want to <span className="gradient-text">analyze?</span>
               </h1>
-              <p className="mt-4 max-w-2xl text-base text-slate-400 leading-relaxed sm:text-lg">
-                Paste two YouTube videos to compare performance, engagement, and
-                creative hooks with instant context-aware insights.
+              <p className="text-lg text-slate-500 dark:text-slate-400 max-w-xl mx-auto">
+                Drop two YouTube video links to uncover hooks, performance gaps, and strategy insights in real-time.
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 mt-2">
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-xl blur opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none"></div>
+            <div className="w-full glass-panel rounded-3xl p-6 shadow-xl">
+              <div className="flex flex-col gap-4">
                 <input
                   value={youtubeUrlA}
                   onChange={(event) => setYoutubeUrlA(event.target.value)}
-                  placeholder="YouTube Video URL A"
-                  className="glass-input rounded-xl w-full relative z-10"
+                  placeholder="Paste YouTube Link A..."
+                  className="glass-input rounded-xl w-full"
                 />
-              </div>
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-xl blur opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none"></div>
                 <input
                   value={youtubeUrlB}
                   onChange={(event) => setYoutubeUrlB(event.target.value)}
-                  placeholder="YouTube Video URL B"
-                  className="glass-input rounded-xl w-full relative z-10"
+                  placeholder="Paste YouTube Link B..."
+                  className="glass-input rounded-xl w-full"
                 />
+                <div className="flex items-center justify-between mt-2">
+                  <div className="text-sm text-rose-500 dark:text-rose-400 font-medium px-2">
+                    {error}
+                  </div>
+                  <button
+                    onClick={handleIngest}
+                    disabled={loading}
+                    className="btn-primary flex items-center gap-2 self-end"
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Analyzing...
+                      </>
+                    ) : "Analyze Now"}
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <button
-                onClick={handleIngest}
-                disabled={loading}
-                className="btn-primary w-full sm:w-auto"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Analyzing Videos...
-                  </span>
-                ) : (
-                  "Initiate Analysis"
-                )}
-              </button>
-              {error ?
-                <div className="rounded-lg bg-rose-500/10 px-4 py-2 border border-rose-500/20 text-rose-300 text-sm animate-fade-in-up">
-                  {error}
-                </div>
-              : null}
-            </div>
           </div>
-        </section>
-
-        {videoCards ? (
-          <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] flex-1 animate-fade-in-up-delay-1 pb-10">
-            <div>
-              <VideoCards videoA={videoCards.videoA} videoB={videoCards.videoB} />
-            </div>
-            <ChatPanel
-              videoIds={[videoCards.videoA.video_id, videoCards.videoB.video_id]}
-            />
-          </section>
         ) : (
-          <div className="mt-16 flex-1 flex flex-col items-center justify-center text-center opacity-50 animate-pulse-slow">
-            <svg className="w-16 h-16 text-slate-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            <p className="text-slate-500 font-medium">Awaiting video inputs for comparison</p>
+          /* Active Analysis View */
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 z-10 w-full max-w-7xl mx-auto space-y-6 animate-fade-in-up">
+            <header className="mb-2">
+             <h2 className="text-2xl font-bold dark:text-white">Analysis Dashboard</h2>
+             <p className="text-sm text-slate-500">Video metrics and AI comparison</p>
+            </header>
+            
+            {videoCards && (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <VideoCards videoA={videoCards.videoA} videoB={videoCards.videoB} />
+              </div>
+            )}
+            
+            <div className="h-[600px] mt-6">
+              <ChatPanel videoIds={videoCards ? [videoCards.videoA.video_id, videoCards.videoB.video_id] : []} />
+            </div>
+            
+            {/* Added spacer for scrolling comfort */}
+            <div className="h-10"></div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

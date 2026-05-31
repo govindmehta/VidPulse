@@ -120,31 +120,31 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ videoIds }) => {
 			<div className="mb-5 flex items-center justify-between relative z-10">
 				<div>
 					<div className="flex items-center gap-2 mb-1">
-						<span className={`h-2 w-2 rounded-full ${isSending ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'}`}></span>
+						<span className={`h-2 w-2 rounded-full ${isSending ? 'bg-indigo-500 dark:bg-indigo-400 animate-pulse' : 'bg-emerald-500 dark:bg-emerald-400'}`}></span>
 						<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
 							Live Analysis
 						</p>
 					</div>
-					<h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-100 to-slate-400">Chat Console</h3>
+					<h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Chat Console</h3>
 				</div>
-				<div className={`rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-md transition-colors ${isSending ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'}`}>
+				<div className={`rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-md transition-colors ${isSending ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}>
 					{isSending ? "Streaming..." : "Ready"}
 				</div>
 			</div>
 
 			<div
 				ref={containerRef}
-				className="flex-1 space-y-4 overflow-y-auto rounded-2xl border border-white/5 bg-slate-950/40 p-5 shadow-inner relative z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/50 hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50 [&::-webkit-scrollbar-track]:bg-transparent"
+				className="flex-1 space-y-4 overflow-y-auto rounded-2xl border border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/40 p-5 shadow-inner relative z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700/50 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 dark:hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50 [&::-webkit-scrollbar-track]:bg-transparent"
 			>
 				{messages.length === 0 ?
 					(
 						<div className="flex h-full flex-col items-center justify-center text-center p-6 animate-fade-in-up">
-							<div className="h-12 w-12 rounded-full bg-slate-800/50 flex items-center justify-center mb-4 border border-white/5">
-								<svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<div className="h-12 w-12 rounded-full bg-slate-200/50 dark:bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-300/50 dark:border-white/5">
+								<svg className="w-6 h-6 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
 								</svg>
 							</div>
-							<p className="text-sm font-medium text-slate-300 mb-2">Start the conversation</p>
+							<p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Start the conversation</p>
 							<p className="text-xs text-slate-500 max-w-[200px]">Ask about performance, hooks, or improvement ideas to begin.</p>
 						</div>
 					) :
@@ -156,8 +156,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ videoIds }) => {
 							<div
 								className={
 									message.role === "user"
-										? "max-w-[85%] rounded-2xl rounded-tr-sm bg-gradient-to-br from-indigo-600 to-indigo-700 px-5 py-3.5 text-sm text-white shadow-lg shadow-indigo-500/20"
-										: "max-w-[85%] rounded-2xl rounded-tl-sm border border-white/10 bg-slate-800/60 backdrop-blur-sm px-5 py-3.5 text-sm text-slate-200 leading-relaxed shadow-md"
+										? "max-w-[85%] rounded-2xl rounded-tr-sm bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 px-5 py-3.5 text-sm text-white shadow-lg shadow-indigo-500/20"
+										: "max-w-[85%] rounded-2xl rounded-tl-sm border border-slate-200/50 dark:border-white/10 bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm px-5 py-3.5 text-sm text-slate-700 dark:text-slate-200 leading-relaxed shadow-sm dark:shadow-md"
 								}
 							>
 								{message.content}
