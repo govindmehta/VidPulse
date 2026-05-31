@@ -45,7 +45,7 @@ async def startup_event() -> None:
 		raise
 
 
-@app.post("/api/ingest")
+@app.post("/api/ingest") 
 async def ingest_videos(payload: VideoAnalysisRequest) -> Dict[str, Any]:
 	try:
 		scraper: VideoScraperService = app.state.scraper_service
